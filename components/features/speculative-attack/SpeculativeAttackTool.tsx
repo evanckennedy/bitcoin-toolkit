@@ -15,7 +15,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 import {
   calculateFiatShorting,
   type StrategyResult,
-} from "@/lib/fiat-calculator";
+} from "@/lib/speculative-attack";
 
 const DEFAULT_INPUTS = {
   loanAmount: 100000,
@@ -160,7 +160,7 @@ function StrategyCard({
   );
 }
 
-export function FiatCalculatorTool() {
+export function SpeculativeAttackTool() {
   const [inputs, setInputs] = useState(DEFAULT_INPUTS);
   const [showResults, setShowResults] = useState(false);
   const [chartMode, setChartMode] = useState<ChartMode>("debtVsBtc");

@@ -10,11 +10,11 @@ import { Button } from "@/components/ui/button";
 
 const tools = [
   {
-    title: "Fiat Shorting Calculator",
+    title: "Speculative Attack Calculator",
     description:
-      "Visualize how debt melts in real terms while Bitcoin grows. See why borrowing at 10% to hold Bitcoin at 40% growth makes the real cost of your debt negative.",
-    href: "/tools/fiat-calculator",
-    cta: "Calculate my Speculative Attack",
+      "Borrow fiat, buy Bitcoin, watch debt melt. Compare deferred, interest-only, and amortized strategies across true net worth and real purchasing power.",
+    href: "/tools/speculative-attack",
+    cta: "Model my Attack",
   },
   {
     title: "LTV Safety Monitor",

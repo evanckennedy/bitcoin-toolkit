@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/sheet";
 
 const navLinks = [
-  { label: "Fiat Calculator", href: "/tools/fiat-calculator" },
+  { label: "Speculative Attack", href: "/tools/speculative-attack" },
   { label: "LTV Monitor", href: "/tools/ltv-monitor" },
   { label: "STRC Arbitrage", href: "/tools/strc-arbitrage" },
 ];
