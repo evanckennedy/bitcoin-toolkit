@@ -26,12 +26,19 @@ const DEFAULT_INPUTS = {
 };
 
 const STRATEGY_KEYS = ["deferred", "interestOnly", "amortized"] as const;
+type StrategyKey = (typeof STRATEGY_KEYS)[number];
+type ChartMode = "debtVsBtc" | "trueNetWorth";
+type ValueMode = "nominal" | "real";
 
 const chartConfig = {
   btcValue: { label: "BTC Value", color: "var(--primary)" },
   deferred: { label: "Deferred", color: "#ef4444" },
   interestOnly: { label: "Interest-only", color: "#94a3b8" },
   amortized: { label: "Fully amortized", color: "#22c55e" },
+  realBtcValue: { label: "BTC Value (real)", color: "var(--primary)" },
+  realDeferred: { label: "Deferred (real)", color: "#ef4444" },
+  realInterestOnly: { label: "Interest-only (real)", color: "#94a3b8" },
+  realAmortized: { label: "Fully amortized (real)", color: "#22c55e" },
   trueNetWorthDeferred: {
     label: "True net worth (deferred)",
     color: "#f97316",
@@ -42,6 +49,18 @@ const chartConfig = {
   },
   trueNetWorthAmortized: {
     label: "True net worth (amortized)",
+    color: "#16a34a",
+  },
+  realTrueNetWorthDeferred: {
+    label: "Real net worth (deferred)",
+    color: "#f97316",
+  },
+  realTrueNetWorthInterestOnly: {
+    label: "Real net worth (interest-only)",
+    color: "#64748b",
+  },
+  realTrueNetWorthAmortized: {
+    label: "Real net worth (amortized)",
     color: "#16a34a",
   },
 } satisfies ChartConfig;
@@ -59,7 +78,7 @@ function fmtEfficiency(value: number | null): string {
   return `${value.toFixed(1)}x`;
 }
 
-const STRATEGY_LABELS: Record<(typeof STRATEGY_KEYS)[number], string> = {
+const STRATEGY_LABELS: Record<StrategyKey, string> = {
   deferred: "Deferred",
   interestOnly: "Interest-only",
   amortized: "Fully amortized",
@@ -68,12 +87,20 @@ const STRATEGY_LABELS: Record<(typeof STRATEGY_KEYS)[number], string> = {
 function StrategyCard({
   strategyKey,
   s,
+  valueMode,
   isBest,
 }: {
-  strategyKey: (typeof STRATEGY_KEYS)[number];
+  strategyKey: StrategyKey;
   s: StrategyResult;
+  valueMode: ValueMode;
   isBest: boolean;
 }) {
+  const isReal = valueMode === "real";
+  const tnw = isReal ? s.realTrueNetWorth : s.trueNetWorth;
+  const efficiency = isReal ? s.realCashEfficiency : s.cashEfficiency;
+  const paidLabel = isReal ? "Total paid (real)" : "Total paid (nominal)";
+  const paid = isReal ? s.totalRealPaid : s.totalNominalPaid;
+
   return (
     <Card className={isBest ? "border-primary" : ""}>
       <CardHeader className="pb-2">
@@ -91,19 +118,20 @@ function StrategyCard({
       <CardContent className="flex flex-col gap-2">
         <div>
           <p
-            className={`text-xl font-bold ${s.trueNetWorth >= 0 ? "text-primary" : "text-destructive"}`}
+            className={`text-xl font-bold ${tnw >= 0 ? "text-primary" : "text-destructive"}`}
           >
-            {fmt(s.trueNetWorth)}
+            {fmt(tnw)}
           </p>
           <p className="text-xs text-muted-foreground">
-            True net worth (BTC − debt − cash paid)
+            {isReal ? "Real" : "Nominal"} true net worth (BTC − debt − cash
+            paid)
           </p>
         </div>
         <div className="flex items-center gap-2">
           <p
-            className={`text-lg font-semibold ${s.cashEfficiency === null ? "text-primary" : ""}`}
+            className={`text-lg font-semibold ${efficiency === null ? "text-primary" : ""}`}
           >
-            {fmtEfficiency(s.cashEfficiency)}
+            {fmtEfficiency(efficiency)}
           </p>
           <p className="text-xs text-muted-foreground">return per $ paid out</p>
         </div>
@@ -115,16 +143,8 @@ function StrategyCard({
             </span>
           </p>
           <p>
-            Total paid (nominal):{" "}
-            <span className="text-foreground font-medium">
-              {fmt(s.totalNominalPaid)}
-            </span>
-          </p>
-          <p>
-            Total paid (real):{" "}
-            <span className="text-foreground font-medium">
-              {fmt(s.totalRealPaid)}
-            </span>
+            {paidLabel}:{" "}
+            <span className="text-foreground font-medium">{fmt(paid)}</span>
           </p>
           <p>
             Debt-to-BTC:{" "}
@@ -143,8 +163,14 @@ function StrategyCard({
 export function FiatCalculatorTool() {
   const [inputs, setInputs] = useState(DEFAULT_INPUTS);
   const [showResults, setShowResults] = useState(false);
-  const [showTrueNetWorth, setShowTrueNetWorth] = useState(false);
+  const [chartMode, setChartMode] = useState<ChartMode>("debtVsBtc");
+  const [valueMode, setValueMode] = useState<ValueMode>("nominal");
   const results = useMemo(() => calculateFiatShorting(inputs), [inputs]);
+
+  const isReal = valueMode === "real";
+  const bestStrategy = isReal
+    ? results.bestRealStrategy
+    : results.bestNominalStrategy;
 
   function handleChange(field: keyof typeof inputs, raw: string) {
     const value = parseFloat(raw);
@@ -288,31 +314,49 @@ export function FiatCalculatorTool() {
             </Card>
           </div>
 
-          {/* Chart toggle */}
-          <div className="flex gap-2">
-            <Button
-              variant={!showTrueNetWorth ? "default" : "outline"}
-              size="sm"
-              onClick={() => setShowTrueNetWorth(false)}
-            >
-              BTC vs. Debt
-            </Button>
-            <Button
-              variant={showTrueNetWorth ? "default" : "outline"}
-              size="sm"
-              onClick={() => setShowTrueNetWorth(true)}
-            >
-              True Net Worth
-            </Button>
+          {/* Controls */}
+          <div className="flex flex-wrap gap-2">
+            <div className="flex gap-2">
+              <Button
+                variant={chartMode === "debtVsBtc" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setChartMode("debtVsBtc")}
+              >
+                BTC vs. Debt
+              </Button>
+              <Button
+                variant={chartMode === "trueNetWorth" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setChartMode("trueNetWorth")}
+              >
+                True Net Worth
+              </Button>
+            </div>
+            <div className="flex gap-2 ml-auto">
+              <Button
+                variant={valueMode === "nominal" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setValueMode("nominal")}
+              >
+                Nominal
+              </Button>
+              <Button
+                variant={valueMode === "real" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setValueMode("real")}
+              >
+                Real
+              </Button>
+            </div>
           </div>
 
           {/* Chart */}
           <Card>
             <CardHeader>
               <CardTitle>
-                {showTrueNetWorth
-                  ? `True Net Worth by Strategy Over ${inputs.years} Years`
-                  : `BTC Value vs. Debt Balance Over ${inputs.years} Years`}
+                {chartMode === "debtVsBtc"
+                  ? `${isReal ? "Real " : ""}BTC Value vs. Debt Balance Over ${inputs.years} Years`
+                  : `${isReal ? "Real " : ""}True Net Worth by Strategy Over ${inputs.years} Years`}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -326,7 +370,7 @@ export function FiatCalculatorTool() {
                   <YAxis tickFormatter={fmt} width={75} />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Legend />
-                  {!showTrueNetWorth ? (
+                  {chartMode === "debtVsBtc" && !isReal && (
                     <>
                       <Line
                         type="monotone"
@@ -360,7 +404,43 @@ export function FiatCalculatorTool() {
                         strokeDasharray="2 4"
                       />
                     </>
-                  ) : (
+                  )}
+                  {chartMode === "debtVsBtc" && isReal && (
+                    <>
+                      <Line
+                        type="monotone"
+                        dataKey="realBtcValue"
+                        stroke="var(--color-realBtcValue)"
+                        strokeWidth={2.5}
+                        dot={false}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="realDeferred"
+                        stroke="var(--color-realDeferred)"
+                        strokeWidth={1.5}
+                        dot={false}
+                        strokeDasharray="6 3"
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="realInterestOnly"
+                        stroke="var(--color-realInterestOnly)"
+                        strokeWidth={1.5}
+                        dot={false}
+                        strokeDasharray="3 3"
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="realAmortized"
+                        stroke="var(--color-realAmortized)"
+                        strokeWidth={1.5}
+                        dot={false}
+                        strokeDasharray="2 4"
+                      />
+                    </>
+                  )}
+                  {chartMode === "trueNetWorth" && !isReal && (
                     <>
                       <Line
                         type="monotone"
@@ -387,19 +467,47 @@ export function FiatCalculatorTool() {
                       />
                     </>
                   )}
+                  {chartMode === "trueNetWorth" && isReal && (
+                    <>
+                      <Line
+                        type="monotone"
+                        dataKey="realTrueNetWorthDeferred"
+                        stroke="var(--color-realTrueNetWorthDeferred)"
+                        strokeWidth={1.5}
+                        dot={false}
+                        strokeDasharray="6 3"
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="realTrueNetWorthInterestOnly"
+                        stroke="var(--color-realTrueNetWorthInterestOnly)"
+                        strokeWidth={1.5}
+                        dot={false}
+                        strokeDasharray="3 3"
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="realTrueNetWorthAmortized"
+                        stroke="var(--color-realTrueNetWorthAmortized)"
+                        strokeWidth={2}
+                        dot={false}
+                      />
+                    </>
+                  )}
                 </LineChart>
               </ChartContainer>
             </CardContent>
           </Card>
 
-          {/* Strategy comparison */}
+          {/* Strategy cards */}
           <div className="grid gap-4 sm:grid-cols-3">
             {STRATEGY_KEYS.map((key) => (
               <StrategyCard
                 key={key}
                 strategyKey={key}
                 s={results.strategies[key]}
-                isBest={results.bestTrueNetWorthStrategy === key}
+                valueMode={valueMode}
+                isBest={bestStrategy === key}
               />
             ))}
           </div>
@@ -408,9 +516,9 @@ export function FiatCalculatorTool() {
             Assumes loan amount is fully deployed into Bitcoin at inception and
             never sold. Payments come from external cash flow. True net worth =
             BTC value minus remaining debt minus all cash paid out of pocket.
-            Cash efficiency = true net worth per dollar paid out (∞ means zero
-            cash spent). Real values adjusted for CPI annually. This is not
-            financial advice.
+            Real values deflate all figures to today's purchasing power using
+            the CPI rate. Cash efficiency = true net worth per dollar paid out
+            (∞ means zero cash spent). This is not financial advice.
           </p>
 
           <Button
