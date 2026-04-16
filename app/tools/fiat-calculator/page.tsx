@@ -1,3 +1,5 @@
+import { FiatCalculatorTool } from "@/components/features/fiat-calculator/FiatCalculatorTool";
+
 export default function FiatCalculatorPage() {
   return (
     <main className="mx-auto max-w-3xl px-6 py-16 flex flex-col gap-6">
@@ -9,7 +11,7 @@ export default function FiatCalculatorPage() {
           over time.
         </p>
       </div>
-      {/* Tool inputs go here */}
+      <FiatCalculatorTool />
     </main>
   );
 }
