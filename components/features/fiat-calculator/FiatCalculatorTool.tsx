@@ -12,42 +12,138 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
-import { calculateFiatShorting } from "@/lib/fiat-calculator";
+import {
+  calculateFiatShorting,
+  type StrategyResult,
+} from "@/lib/fiat-calculator";
 
 const DEFAULT_INPUTS = {
   loanAmount: 100000,
   apr: 10,
-  btcGrowth: 30,
+  btcGrowth: 40,
   cpi: 3,
+  years: 10,
 };
+
+const STRATEGY_KEYS = ["deferred", "interestOnly", "amortized"] as const;
 
 const chartConfig = {
   btcValue: { label: "BTC Value", color: "var(--primary)" },
-  deferred: { label: "Deferred (no payments)", color: "#ef4444" },
+  deferred: { label: "Deferred", color: "#ef4444" },
   interestOnly: { label: "Interest-only", color: "#94a3b8" },
   amortized: { label: "Fully amortized", color: "#22c55e" },
+  trueNetWorthDeferred: {
+    label: "True net worth (deferred)",
+    color: "#f97316",
+  },
+  trueNetWorthInterestOnly: {
+    label: "True net worth (interest-only)",
+    color: "#64748b",
+  },
+  trueNetWorthAmortized: {
+    label: "True net worth (amortized)",
+    color: "#16a34a",
+  },
 } satisfies ChartConfig;
 
 function fmt(value: number): string {
-  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
-  return `$${value.toFixed(0)}`;
+  const abs = Math.abs(value);
+  const sign = value < 0 ? "-" : "";
+  if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000) return `${sign}$${(abs / 1_000).toFixed(0)}K`;
+  return `${sign}$${abs.toFixed(0)}`;
 }
 
-function Pct({ value }: { value: number }) {
-  const color =
-    value <= 0 ? "text-primary" : value > 50 ? "text-destructive" : "";
+function fmtEfficiency(value: number | null): string {
+  if (value === null) return "∞";
+  return `${value.toFixed(1)}x`;
+}
+
+const STRATEGY_LABELS: Record<(typeof STRATEGY_KEYS)[number], string> = {
+  deferred: "Deferred",
+  interestOnly: "Interest-only",
+  amortized: "Fully amortized",
+};
+
+function StrategyCard({
+  strategyKey,
+  s,
+  isBest,
+}: {
+  strategyKey: (typeof STRATEGY_KEYS)[number];
+  s: StrategyResult;
+  isBest: boolean;
+}) {
   return (
-    <span className={`text-3xl font-bold ${color}`}>
-      {value > 0 ? "+" : ""}
-      {value.toFixed(1)}%
-    </span>
+    <Card className={isBest ? "border-primary" : ""}>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-medium text-muted-foreground">
+            {STRATEGY_LABELS[strategyKey]}
+          </CardTitle>
+          {isBest && (
+            <span className="text-xs font-semibold text-primary">
+              Best outcome
+            </span>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-2">
+        <div>
+          <p
+            className={`text-xl font-bold ${s.trueNetWorth >= 0 ? "text-primary" : "text-destructive"}`}
+          >
+            {fmt(s.trueNetWorth)}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            True net worth (BTC − debt − cash paid)
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <p
+            className={`text-lg font-semibold ${s.cashEfficiency === null ? "text-primary" : ""}`}
+          >
+            {fmtEfficiency(s.cashEfficiency)}
+          </p>
+          <p className="text-xs text-muted-foreground">return per $ paid out</p>
+        </div>
+        <div className="border-t border-border pt-2 flex flex-col gap-1 text-xs text-muted-foreground">
+          <p>
+            Remaining balance:{" "}
+            <span className="text-foreground font-medium">
+              {fmt(s.balanceAtEnd)}
+            </span>
+          </p>
+          <p>
+            Total paid (nominal):{" "}
+            <span className="text-foreground font-medium">
+              {fmt(s.totalNominalPaid)}
+            </span>
+          </p>
+          <p>
+            Total paid (real):{" "}
+            <span className="text-foreground font-medium">
+              {fmt(s.totalRealPaid)}
+            </span>
+          </p>
+          <p>
+            Debt-to-BTC:{" "}
+            <span
+              className={`font-semibold ${s.debtToBtcRatio < 1 ? "text-primary" : "text-destructive"}`}
+            >
+              {(s.debtToBtcRatio * 100).toFixed(0)}%
+            </span>
+          </p>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
 export function FiatCalculatorTool() {
   const [inputs, setInputs] = useState(DEFAULT_INPUTS);
   const [showResults, setShowResults] = useState(false);
+  const [showTrueNetWorth, setShowTrueNetWorth] = useState(false);
   const results = useMemo(() => calculateFiatShorting(inputs), [inputs]);
 
   function handleChange(field: keyof typeof inputs, raw: string) {
@@ -110,10 +206,21 @@ export function FiatCalculatorTool() {
               onChange={(e) => handleChange("cpi", e.target.value)}
             />
           </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="years">Duration (years)</Label>
+            <Input
+              id="years"
+              type="number"
+              min={1}
+              max={50}
+              step={1}
+              value={inputs.years}
+              onChange={(e) => handleChange("years", e.target.value)}
+            />
+          </div>
         </CardContent>
       </Card>
 
-      {/* CTA */}
       {!showResults && (
         <Button
           size="lg"
@@ -124,11 +231,10 @@ export function FiatCalculatorTool() {
         </Button>
       )}
 
-      {/* Results */}
       {showResults && (
         <>
-          {/* Top stats */}
-          <div className="grid gap-4 sm:grid-cols-2">
+          {/* Summary stats */}
+          <div className="grid gap-4 sm:grid-cols-3">
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -136,7 +242,12 @@ export function FiatCalculatorTool() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <Pct value={results.realCostOfDebt} />
+                <p
+                  className={`text-3xl font-bold ${results.realCostOfDebt <= 0 ? "text-primary" : ""}`}
+                >
+                  {results.realCostOfDebt > 0 ? "+" : ""}
+                  {results.realCostOfDebt.toFixed(1)}%
+                </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   APR minus inflation — negative means debt is melting
                 </p>
@@ -149,18 +260,60 @@ export function FiatCalculatorTool() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <Pct value={results.netAnnualSpread} />
+                <p
+                  className={`text-3xl font-bold ${results.netAnnualSpread >= 0 ? "text-primary" : "text-destructive"}`}
+                >
+                  {results.netAnnualSpread > 0 ? "+" : ""}
+                  {results.netAnnualSpread.toFixed(1)}%
+                </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   BTC growth minus your APR
                 </p>
               </CardContent>
             </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Break-even BTC Growth
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold">
+                  {results.breakEvenBtcGrowth.toFixed(1)}%
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Min. annual BTC growth to outrun compounding debt
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Chart toggle */}
+          <div className="flex gap-2">
+            <Button
+              variant={!showTrueNetWorth ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowTrueNetWorth(false)}
+            >
+              BTC vs. Debt
+            </Button>
+            <Button
+              variant={showTrueNetWorth ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowTrueNetWorth(true)}
+            >
+              True Net Worth
+            </Button>
           </div>
 
           {/* Chart */}
           <Card>
             <CardHeader>
-              <CardTitle>BTC Value vs. Debt Balance Over 10 Years</CardTitle>
+              <CardTitle>
+                {showTrueNetWorth
+                  ? `True Net Worth by Strategy Over ${inputs.years} Years`
+                  : `BTC Value vs. Debt Balance Over ${inputs.years} Years`}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <ChartContainer config={chartConfig} className="h-80 w-full">
@@ -173,37 +326,67 @@ export function FiatCalculatorTool() {
                   <YAxis tickFormatter={fmt} width={75} />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="btcValue"
-                    stroke="var(--color-btcValue)"
-                    strokeWidth={2.5}
-                    dot={false}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="deferred"
-                    stroke="var(--color-deferred)"
-                    strokeWidth={1.5}
-                    dot={false}
-                    strokeDasharray="6 3"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="interestOnly"
-                    stroke="var(--color-interestOnly)"
-                    strokeWidth={1.5}
-                    dot={false}
-                    strokeDasharray="3 3"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="amortized"
-                    stroke="var(--color-amortized)"
-                    strokeWidth={1.5}
-                    dot={false}
-                    strokeDasharray="2 4"
-                  />
+                  {!showTrueNetWorth ? (
+                    <>
+                      <Line
+                        type="monotone"
+                        dataKey="btcValue"
+                        stroke="var(--color-btcValue)"
+                        strokeWidth={2.5}
+                        dot={false}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="deferred"
+                        stroke="var(--color-deferred)"
+                        strokeWidth={1.5}
+                        dot={false}
+                        strokeDasharray="6 3"
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="interestOnly"
+                        stroke="var(--color-interestOnly)"
+                        strokeWidth={1.5}
+                        dot={false}
+                        strokeDasharray="3 3"
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="amortized"
+                        stroke="var(--color-amortized)"
+                        strokeWidth={1.5}
+                        dot={false}
+                        strokeDasharray="2 4"
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <Line
+                        type="monotone"
+                        dataKey="trueNetWorthDeferred"
+                        stroke="var(--color-trueNetWorthDeferred)"
+                        strokeWidth={1.5}
+                        dot={false}
+                        strokeDasharray="6 3"
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="trueNetWorthInterestOnly"
+                        stroke="var(--color-trueNetWorthInterestOnly)"
+                        strokeWidth={1.5}
+                        dot={false}
+                        strokeDasharray="3 3"
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="trueNetWorthAmortized"
+                        stroke="var(--color-trueNetWorthAmortized)"
+                        strokeWidth={2}
+                        dot={false}
+                      />
+                    </>
+                  )}
                 </LineChart>
               </ChartContainer>
             </CardContent>
@@ -211,45 +394,22 @@ export function FiatCalculatorTool() {
 
           {/* Strategy comparison */}
           <div className="grid gap-4 sm:grid-cols-3">
-            {(["deferred", "interestOnly", "amortized"] as const).map((key) => {
-              const s = results.strategies[key];
-              return (
-                <Card key={key}>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
-                      {s.label}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="flex flex-col gap-1">
-                    <p className="text-lg font-bold">
-                      {fmt(s.balanceAtEnd)} remaining
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {fmt(s.totalCashPaid)} total paid out
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Debt-to-BTC ratio:{" "}
-                      <span
-                        className={
-                          s.debtToBtcRatio < 1
-                            ? "text-primary font-semibold"
-                            : "text-destructive font-semibold"
-                        }
-                      >
-                        {(s.debtToBtcRatio * 100).toFixed(0)}%
-                      </span>
-                    </p>
-                  </CardContent>
-                </Card>
-              );
-            })}
+            {STRATEGY_KEYS.map((key) => (
+              <StrategyCard
+                key={key}
+                strategyKey={key}
+                s={results.strategies[key]}
+                isBest={results.bestTrueNetWorthStrategy === key}
+              />
+            ))}
           </div>
 
           <p className="text-xs text-muted-foreground">
-            Assumes loan amount is fully deployed into Bitcoin at inception.
-            Deferred strategy accrues compound interest with no payments.
-            Interest-only services annual interest but holds principal flat.
-            Fully amortized uses standard monthly payments. This is not
+            Assumes loan amount is fully deployed into Bitcoin at inception and
+            never sold. Payments come from external cash flow. True net worth =
+            BTC value minus remaining debt minus all cash paid out of pocket.
+            Cash efficiency = true net worth per dollar paid out (∞ means zero
+            cash spent). Real values adjusted for CPI annually. This is not
             financial advice.
           </p>
 
