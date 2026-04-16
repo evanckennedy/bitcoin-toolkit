@@ -104,7 +104,7 @@ function StrategyCard({
   return (
     <Card className={isBest ? "border-primary" : ""}>
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="text-sm font-medium text-muted-foreground">
             {STRATEGY_LABELS[strategyKey]}
           </CardTitle>
@@ -180,7 +180,7 @@ export function FiatCalculatorTool() {
   }
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-8 min-w-0">
       {/* Inputs */}
       <Card>
         <CardHeader>
@@ -315,7 +315,7 @@ export function FiatCalculatorTool() {
           </div>
 
           {/* Controls */}
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex gap-2">
               <Button
                 variant={chartMode === "debtVsBtc" ? "default" : "outline"}
@@ -332,7 +332,7 @@ export function FiatCalculatorTool() {
                 True Net Worth
               </Button>
             </div>
-            <div className="flex gap-2 ml-auto">
+            <div className="flex gap-2">
               <Button
                 variant={valueMode === "nominal" ? "default" : "outline"}
                 size="sm"
@@ -353,23 +353,34 @@ export function FiatCalculatorTool() {
           {/* Chart */}
           <Card>
             <CardHeader>
-              <CardTitle>
+              <CardTitle className="text-base sm:text-lg">
                 {chartMode === "debtVsBtc"
                   ? `${isReal ? "Real " : ""}BTC Value vs. Debt Balance Over ${inputs.years} Years`
                   : `${isReal ? "Real " : ""}True Net Worth by Strategy Over ${inputs.years} Years`}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <ChartContainer config={chartConfig} className="h-80 w-full">
+              <ChartContainer
+                config={chartConfig}
+                className="h-64 sm:h-80 w-full overflow-hidden"
+              >
                 <LineChart
                   data={results.chartData}
-                  margin={{ top: 5, right: 10, left: 10, bottom: 5 }}
+                  margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="year" tickFormatter={(v) => `Yr ${v}`} />
-                  <YAxis tickFormatter={fmt} width={75} />
+                  <XAxis
+                    dataKey="year"
+                    tickFormatter={(v) => `Yr ${v}`}
+                    tick={{ fontSize: 11 }}
+                  />
+                  <YAxis
+                    tickFormatter={fmt}
+                    width={60}
+                    tick={{ fontSize: 11 }}
+                  />
                   <ChartTooltip content={<ChartTooltipContent />} />
-                  <Legend />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
                   {chartMode === "debtVsBtc" && !isReal && (
                     <>
                       <Line
