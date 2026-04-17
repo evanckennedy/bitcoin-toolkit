@@ -26,7 +26,7 @@ const tools = [
   {
     title: "STRC Arbitrage Tool",
     description:
-      "Borrow at 8%, earn 11.5% from STRC dividends, and use the spread to auto-stack Bitcoin to cold storage. See the numbers behind Saylor's playbook.",
+      "Borrow fiat, earn STRC dividends, deploy the spread. Compare stacking BTC directly against compounding your STRC position — and see which wins at your growth rate.",
     href: "/tools/strc-arbitrage",
     cta: "Run the Arbitrage",
   },
