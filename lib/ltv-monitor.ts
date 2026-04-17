@@ -11,7 +11,6 @@ export type LtvResults = {
   dollarDropToLiquidation: number;
   percentDropToLiquidation: number;
   collateralValue: number;
-  safetyBuffer: number; // percentage points below threshold
 };
 
 export function calculateLtv(inputs: LtvInputs): LtvResults {
@@ -37,6 +36,5 @@ export function calculateLtv(inputs: LtvInputs): LtvResults {
     dollarDropToLiquidation,
     percentDropToLiquidation,
     collateralValue,
-    safetyBuffer,
   };
 }
