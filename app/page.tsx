@@ -34,7 +34,7 @@ const tools = [
 
 export default function Home() {
   return (
-    <main className="flex flex-col items-center px-6 py-20">
+    <main className="flex flex-col items-center px-6 py-20 w-full min-w-0">
       <div className="max-w-3xl w-full flex flex-col gap-10">
         <div className="flex flex-col gap-3">
           <h1 className="text-4xl font-bold tracking-tight">Bitcoin Toolkit</h1>

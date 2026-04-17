@@ -28,8 +28,6 @@ export function calculateLtv(inputs: LtvInputs): LtvResults {
   const dollarDropToLiquidation = Math.max(0, btcPrice - liquidationPrice);
   const percentDropToLiquidation =
     btcPrice === 0 ? 0 : (dollarDropToLiquidation / btcPrice) * 100;
-  const safetyBuffer = liquidationThreshold - currentLtv;
-
   return {
     currentLtv,
     liquidationPrice,

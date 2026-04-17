@@ -275,8 +275,13 @@ export function StrcArbitrageTool() {
               <CardTitle className="text-base sm:text-lg">
                 Arbitrage Value Over {inputs.years} Years by Strategy
               </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Direct BTC Stack includes Bitcoin price appreciation. STRC
+                Compound shows excess STRC at face value — appreciation only
+                applies after converting to Bitcoin at termination.
+              </p>
             </CardHeader>
-            <CardContent className="flex flex-col gap-2">
+            <CardContent>
               <ChartContainer
                 config={chartConfig}
                 className="h-64 sm:h-80 w-full overflow-hidden"
@@ -315,12 +320,6 @@ export function StrcArbitrageTool() {
                   />
                 </LineChart>
               </ChartContainer>
-              <p className="text-xs text-muted-foreground">
-                Direct BTC Stack value includes Bitcoin price appreciation at
-                your growth rate. STRC Compound shows excess STRC position at
-                face value — no Bitcoin appreciation until converted at
-                termination.
-              </p>
             </CardContent>
           </Card>
 
