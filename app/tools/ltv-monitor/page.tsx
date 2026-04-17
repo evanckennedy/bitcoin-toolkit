@@ -1,6 +1,8 @@
+import { LtvMonitorTool } from "@/components/features/ltv-monitor/LtvMonitorTool";
+
 export default function LtvMonitorPage() {
   return (
-    <main className="mx-auto max-w-3xl px-6 py-16 flex flex-col gap-6">
+    <main className="w-full min-w-0 mx-auto max-w-3xl px-4 sm:px-6 py-16 flex flex-col gap-6">
       <div>
         <h1 className="text-3xl font-bold">LTV Safety Monitor</h1>
         <p className="text-muted-foreground mt-2">
@@ -9,7 +11,7 @@ export default function LtvMonitorPage() {
           call.
         </p>
       </div>
-      {/* Tool inputs go here */}
+      <LtvMonitorTool />
     </main>
   );
 }
